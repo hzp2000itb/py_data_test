@@ -1,0 +1,51 @@
+#load .csv file
+LOAD DATA INFILE "G:/TianChi/logistic/CAINIAO/item_store_feature1.csv"
+INTO TABLE item_store_feature1
+FIELDS TERMINATED BY ','
+OPTIONALLY  ENCLOSED BY ""
+lines terminated by '\r\n'
+
+
+#select count(distinct item_id),store_code  from item_store_feature1  group by store_code
+#select distinct item_id from item_store_feature1  where store_code='1'
+#select count(distinct item_id)  from item_store_feature1 where store_code='3' 
+
+#SELECT item_id,sum(num_alipay_njhs) from item_feature1 GROUP BY item_id ORDER BY SUM(num_alipay_njhs) DESC
+
+
+#从已有数据库中创建一个新表，新表中商品ID是唯一的
+#create table items select distinct item_id from config1 where store_code='1' 
+
+#去年度同期销售商品种类别总数,每天成交量至少大于0
+#select count(DISTINCT item_id),date from item_feature1 where date>20141227 and date<20150111 and qty_alipay_njhs>0 group by date 
+
+#创建去年同期符合要求的商品种类非聚划算销售情况表
+#create table item_lastterm select item_id,num_alipay_njhs,qty_alipay_njhs,unum_alipay_njhs,date from item_feature1 where date>20141227 and date<20150111 and qty_alipay_njhs<>0 order by date 
+
+#去年同期销售商品数量的分布数据，结果拟合显示呈现高度的长尾特征
+#select sum(num_alipay_njhs),item_id from item_lastterm group by item_id order by  sum(num_alipay_njhs) desc
+
+#select sum(num_alipay_njhs),item_id from item_feature1 group by item_id order by sum(num_alipay_njhs) desc
+
+
+#select sum(num_alipay_njhs),item_id from item_feature1 where date>'20141010' and date<'20141024' group by item_id order by sum(num_alipay_njhs) desc
+
+SELECT FLOOR(DATEDIFF(item_feature1.date,'2014-10-10')/14) as periods,sum(num_alipay_njhs) as sum_num,item_id 
+from item_feature1 GROUP BY item_id,FLOOR(DATEDIFF(item_feature1.date,'2014-10-10')/14)
+
+
+#一句SQL查询代码实现分时段、分名称统计查询
+CREATE table item_nums_period SELECT FLOOR(DATEDIFF('2015-12-27',item_feature1.date)/14) as periods,sum(num_alipay_njhs) as sum_num,item_id 
+from item_feature1 GROUP BY item_id,FLOOR(DATEDIFF('2015-12-27',item_feature1.date)/14)
+
+create table items_sameterm select item_id,sum(num_alipay_njhs) as sum_num from item_feature1 
+where DATE_ADD(item_feature1.date,INTERVAL 0 DAY)>'2014-12-27' and DATE_ADD(item_feature1.date,INTERVAL 0 DAY)<'2015-01-11' and num_alipay_njhs>0 
+group by item_id ORDER BY sum(num_alipay_njhs) DESC
+
+#SELECT sum(item_feature1.num_alipay_njhs),items.item_id from item_feature1 INNER JOIN items ON item_feature1.item_id=items.item_id GROUP BY FLOOR(DATEDIFF(item_feature1.date,'2014-10-10'))
+SELECT count(item_id) from
+(
+SELECT item_nums_period.sum_num,item_nums_period.item_id,items_sameterm.sum_num as sum_same from item_nums_period 
+INNER JOIN items_sameterm on item_nums_period.item_id=items_sameterm.item_id
+where item_nums_period.periods=0 and item_nums_period.sum_num>0 and items_sameterm.sum_num>0 order by item_nums_period.sum_num DESC
+) as item_rb
